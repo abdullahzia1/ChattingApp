@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat APp</title>
+    <script
+      src="https://cdn.socket.io/4.5.0/socket.io.min.js"
+      integrity="sha384-7EyYLQZgWBi67fBtVxw60/OWl1kjsfrPFcaU0pp0nAh+i8FD068QogUvg85Ewy1k"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div id="loginForm">
+      <input type="text" id="username" />
+      <button type="button" id="setNameBtn">Set Name</button>
+    </div>
+    <button id="disconnectBtn" hidden>Disconnect</button>
+
+    <div>
+      <h1>Chat Area</h1>
+      <input type="text" id="msgBox" hidden />
+      <button type="button" id="sendBtn" hidden>Send</button>
+      <div id="charArea" hidden></div>
+    </div>
+  </body>
+  <script src="./index.js"></script>
+</html>
