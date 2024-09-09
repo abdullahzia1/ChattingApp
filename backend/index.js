@@ -1,27 +1,31 @@
 import express from "express";
-import { Server } from "socket.io";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 import { configDotenv } from "dotenv";
 configDotenv();
 
 import pool from "./db/db.js";
 import { constantPath } from "./utils/constant.js";
-import { postRoomId } from "./controller/chatController.js";
+import { initSocket } from "./sockets/index.js";
+import appRoutes from "./router/indexRoutes.js";
+import { errorHandler, notFound } from "./middleware/errorHandler.js";
+import asyncHandler from "./middleware/asyncHandler.js";
 
 const app = express();
-const port = process.env.PORT || 5002;
-let io;
+const port = process.env.SERVER_PORT || 5002;
 
-app.use("/", (req, res, next) => {
-  req.io = io;
-  next();
-});
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cors({ origin: "*" }));
+app.use(cookieParser());
 
-app.use("/", express.static(constantPath("..", "client")));
+// app.use("/", express.static(constantPath("..", "client")));
 
-// app.use("/", (req, res, next) => {
-//   res.sendFile(constantPath("..", "index.html"));
-// });
-postRoomId();
+app.use("/api", appRoutes);
+
+app.use(notFound);
+
+app.use(errorHandler);
 
 pool
   .connect()
@@ -29,36 +33,7 @@ pool
     const server = app.listen(port, () => {
       console.log(`Server is runnng on port ${port}`);
     });
-    // console.log(server);
-    io = new Server(server, { cors: { origin: "*" } });
-    io.on("connection", async (socket) => {
-      console.log(`Client Connected: ${socket.id}`);
-      socket.on("disconnect", async () => {
-        console.log("Socket Disconnected: ", socket.id);
-      });
-      socket.on("send-public-message", async function (messageObj) {
-        io.emit("get-public-message", messageObj);
-        console.log(messageObj);
-      });
-
-      socket.on("send-private-message", async function (data) {
-        const { message, roomId } = data;
-        socket.join(roomId);
-        console.log(`User ${socket.id} joined room: ${roomId}`);
-        io.to(roomId).emit("get-private-message", { message, id: roomId });
-        // io.emit("get-private-message", messageObj);
-        console.log(data);
-      });
-
-      // socket.on("send-public-message", async function (data) {
-      //   const { message } = data;
-      //   socket.join(roomId);
-      //   console.log(`User ${socket.id} joined room: ${roomId}`);
-      //   io.to(roomId).emit("get-public-message", { message, id: roomId });
-      //   // io.emit("get-private-message", messageObj);
-      //   console.log(data);
-      // });
-    });
+    initSocket(server);
   })
   .catch((error) => {
     console.log(error);
