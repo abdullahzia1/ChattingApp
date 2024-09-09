@@ -1,0 +1,56 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Form Container */
+.form-container {
+  background-color: #2989d8;
+  width: 90%;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  margin: 0 auto;
+  display: grid;
+  align-items: center;
+  gap: 15px; /* Add gap between elements */
+}
+
+/* Heading */
+.form-container > div {
+  padding: 20px;
+  background-color: #68849f;
+  text-align: center;
+  color: #fff;
+}
+
+/* Already a User Link */
+.already-user {
+  text-align: center;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Input Field */
+.input-field {
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 1rem;
+  margin-left: 70px;
+  margin-bottom: 15px;
+}
+
+/* Submit Button */
+.submit-button {
+  width: 70%;
+  margin-left: 50px;
+  font-size: 1rem;
+  padding: 10px;
+  background-color: #19be58eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}

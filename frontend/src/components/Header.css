@@ -1,0 +1,52 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  /* background-color: #303952; Light background color */
+
+  background-image: linear-gradient(to right, #264a73, #2989d8);
+  /* Replace the colors with your desired gradient */
+  padding: 10px;
+  color: white; /* Ensure text color contrasts with the gradient */
+
+  border-radius: 20px;
+  margin-bottom: 10px;
+  border: 1px solid white;
+}
+
+.header-link {
+  text-decoration: none;
+  color: #eeeeee;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent; /* Remove default link underline */
+  border-radius: 4px;
+  transition: background-color 0.2s ease-in-out; /* Smooth hover effect */
+  cursor: pointer;
+}
+.header-link-logout button {
+  text-decoration: none;
+  background: #6e768fb8;
+  color: aliceblue;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent; /* Remove default link underline */
+  border-radius: 4px;
+  transition: background-color 0.2s ease-in-out; /* Smooth hover effect */
+  cursor: pointer;
+}
+.header-link-logout button:hover {
+  background-color: #e24938dc;
+}
+.header-link:hover {
+  background-color: #6e768fb8; /* Slightly lighter background on hover */
+}
+
+.header-separator {
+  margin: 0 0.5rem; /* Spacing around separator */
+  color: #000000d0;
+}
+
+.header-user-greeting {
+  font-weight: bold;
+  margin-left: 0.5rem; /* Margin from previous element */
+}

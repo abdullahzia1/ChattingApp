@@ -1,0 +1,73 @@
+/* Global Styles */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Chat Container */
+.chatContainer {
+  width: 550px;
+  padding: 20px;
+  border-radius: 5px;
+  background: #2989d8;
+  border: 10px solid #ccc;
+}
+
+.welcomeText {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.chatArea {
+  height: 300px; /* Set a fixed height (adjust as needed) */
+  overflow-y: scroll; /* Allow scrolling when messages overflow */
+  border-bottom: 1px solid #ddd; /* Add a bottom border */
+  padding-bottom: 1rem; /* Add some padding below */
+  background: #2989d8;
+}
+
+.messageContainer {
+  margin-bottom: 1rem;
+  display: flex; /* Make messages stack horizontally */
+  align-items: center; /* Vertically align content within */
+  background: #2989d8;
+}
+
+.messageContainer b {
+  margin-right: 10px;
+}
+
+.messageActions {
+  display: flex;
+  margin-left: auto;
+}
+
+.messageActions button {
+  margin-right: 5px;
+  padding: 5px 10px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  cursor: pointer;
+  background-color: #f44336; /* Green color */
+  color: white;
+}
+
+.messageInput {
+  width: 70%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin-top: 1rem;
+  display: grid;
+  margin-bottom: 1rem;
+}
+
+.sendButton {
+  padding: 10px 20px;
+  background-color: #4caf50; /* Red color */
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
