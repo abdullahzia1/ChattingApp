@@ -24,7 +24,7 @@ const authUser = asyncHandler(async (req, res) => {
 
   const result = loginValidation.validate({ email, password });
   if (result.error) {
-    res.status(400);
+    res.status(400).json({ message: result.error.message });
     throw new Error(result.error.message);
   }
 
@@ -35,7 +35,7 @@ const authUser = asyncHandler(async (req, res) => {
   if (emailResult.rows.length === 0) {
     res.status(401);
 
-    throw new Error("Invalid email or password");
+    throw new Error("Invalid Credentials");
   }
 
   const user = emailResult.rows[0];
@@ -46,29 +46,28 @@ const authUser = asyncHandler(async (req, res) => {
   console.log(twoAuthRows);
   const twoAuth = twoAuthRows.rows[0];
   let verified = false;
-  if (!twoAuth.enabled) {
-    if (twoAuth.enabled) {
-      verified = authenticator.check(twoFAcode, twoAuth.secret);
+  if (twoAuth.enabled === "true") {
+    verified = authenticator.check(twoFAcode, twoAuth.secret);
+    if (twoAuth.enabled === "true" && !verified) {
+      res.status(401);
+      throw new Error("Invalid Credentials");
     }
     // if (twoFAcode == 0) return res.status(401);
   }
 
-  if (twoAuth.enabled && !verified) {
-    return res.status(401).json({ message: "User Authorization failed" });
-  }
   // console.log(user);
 
   const isPasswordMatch = await bcrypt.compare(password, user.hashed_password);
 
   if (!isPasswordMatch) {
     res.status(401);
-    throw new Error("Invalid email or password");
+    throw new Error("Invalid Credentials");
   }
   console.log("Generating access token");
-  const userFullname = user.full_name;
-  const userEmail = user.email;
-  const access_Token = generateAccessToken(userEmail, userFullname, "4h");
-  const refresh_Token = generateRefreshToken(userEmail, userFullname, "7d");
+  // const userFullname = user.full_name;
+  // const userEmail = user.email;
+  const access_Token = generateAccessToken(user.email, user.full_name, "4h");
+  const refresh_Token = generateRefreshToken(user.email, user.full_name, "7d");
 
   if (access_Token && refresh_Token) {
     console.log(refresh_Token);
@@ -80,12 +79,10 @@ const authUser = asyncHandler(async (req, res) => {
       access_Token: access_Token,
       refresh_Token: refresh_Token,
     });
+  } else {
+    res.status(500);
+    throw new Error("Internal Server Error");
   }
-  if (!access_Token && !refresh_Token) {
-    return res.status(401).json({ message: "User Authorization failed" });
-  }
-
-  return res.status(500).json({ message: "Internal server error" });
 });
 
 /* 
@@ -103,88 +100,77 @@ const postUserSignup = asyncHandler(async (req, res) => {
     name,
   });
   if (result.error) {
-    return res.status(400).send(result.error.message);
+    res.status(400);
+    throw new Error(result.error.message);
   }
-  try {
-    const existingUser = await pool.query(
-      `SELECT COUNT(*) FROM users WHERE email = $1`,
-      [email]
+
+  const existingUser = await pool.query(
+    `SELECT COUNT(*) FROM users WHERE email = $1`,
+    [email]
+  );
+  const alreadyRegistered = existingUser.rows[0].count > 0;
+
+  if (!alreadyRegistered) {
+    const saltGen = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, saltGen);
+    const newUserRows = await pool.query(
+      `INSERT INTO users (email, hashed_password,full_name) VALUES($1, $2, $3) RETURNING user_id, email, full_name`,
+      [email, hashedPassword, name]
     );
-    const alreadyRegistered = existingUser.rows[0].count > 0;
+    const newUser = newUserRows.rows[0];
+    await pool.query(
+      "INSERT INTO two_factor_auth(user_id,enabled) VALUES($1, $2)",
+      [newUser.user_id, false]
+    );
+    const access_Token = generateAccessToken(email, name, "4h");
+    const refresh_Token = generateRefreshToken(email, name, "7d");
 
-    if (!alreadyRegistered) {
-      const saltGen = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, saltGen);
-      const newUserRows = await pool.query(
-        `INSERT INTO users (email, hashed_password,full_name) VALUES($1, $2, $3) RETURNING user_id, email, full_name`,
-        [email, hashedPassword, name]
-      );
-      const newUser = newUserRows.rows[0];
-      await pool.query(
-        "INSERT INTO two_factor_auth(user_id,enabled) VALUES($1, $2)",
-        [newUser.user_id, false]
-      );
-      const access_Token = generateAccessToken(email, name, "4h");
-      const refresh_Token = generateRefreshToken(email, name, "7d");
-
-      if (access_Token && refresh_Token) {
-        console.log(access_Token, refresh_Token);
-        // const user = newUser.rows[0];
-        // console.log(newUser);
-        // console.log(user);
-
-        return res.status(200).json({
-          access_Token,
-          refresh_Token,
-        });
-      } else {
-        return res.status(401).json({ message: "User registration failed" });
-      }
+    if (access_Token && refresh_Token) {
+      return res.status(200).json({
+        access_Token,
+        refresh_Token,
+      });
+    } else {
+      res.status(500);
+      throw new Error("User registration failed");
     }
-    return res.status(401).json({ message: "User is already registred" });
-
-    // console.log(const id = newUser.rows[0].id;)
-  } catch (error) {
-    console.log("POST USER SIGNUP", error);
-    return res.status(500).json({ error: error.message });
   }
+  res.status(401);
+  throw new Error("User is already registred");
 });
 
 const postRefreshToken = asyncHandler(async (req, res) => {
   const refreshToken = req.body.refresh;
 
   // console.log("REFRESH TOKEN ENDPOINT", refreshToken);
-  if (!refreshToken)
-    return res.status(401).json({ message: " Could Not Parse request" });
+  if (!refreshToken) {
+    res.status(401);
+    throw new Error("Could Not Parse request");
+  }
 
-  try {
-    // console.log("Entering Verification");
+  const user = verifyRefreshToken(refreshToken);
+  // console.log("Exiting Verification");
+  console.log(user);
+  if (!user && user.error) {
+    res.status(401);
+    throw new Error("Invalid Token");
+  }
 
-    const user = verifyRefreshToken(refreshToken);
-    // console.log("Exiting Verification");
-    console.log(user);
-    if (!user && user.error) {
-      return res.status(400).json({ message: "TOKEN PROBLEM" });
-    }
+  // Optionally, check if the refresh token exists in the database
+  // jwt parses data in parameters, that youn saved with when creating token thats why user.id
+  // instead of user_id
+  const dbUser = await pool.query("SELECT * FROM users WHERE user_id = $1", [
+    user.id,
+  ]);
 
-    // Optionally, check if the refresh token exists in the database
-    // jwt parses data in parameters, that youn saved with when creating token thats why user.id
-    // instead of user_id
-    const dbUser = await pool.query("SELECT * FROM users WHERE user_id = $1", [
-      user.id,
-    ]);
-
-    const foundUser = dbUser.rows[0];
-    if (!foundUser || foundUser.ref) return res.status(403);
-    if (foundUser && foundUser.refreshtoken === refreshToken) {
-      const access_Token = generateAccessToken(user.email, user.name, "4h");
-      return res
-        .status(200)
-        .json({ access_Token, refresh_Token: refreshToken });
-    }
-  } catch (err) {
-    console.log(err);
-    return res.status(403); // Invalid refresh token
+  const foundUser = dbUser.rows[0];
+  if (!foundUser) {
+    res.status(403);
+    throw new Error("Invalid token");
+  }
+  if (foundUser && foundUser.refreshtoken === refreshToken) {
+    const access_Token = generateAccessToken(user.email, user.name, "4h");
+    return res.status(200).json({ access_Token, refresh_Token: refreshToken });
   }
 });
 
@@ -199,83 +185,70 @@ const getProtectedRoute = asyncHandler(async (req, res) => {
 
 const postQRCode = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  if (!email) {
+    res.status(401);
+    throw new Error("Invalid Request");
+  }
   console.log("qrCode endpoint");
   const resRows = await pool.query("SELECT * FROM users WHERE email = $1", [
     email,
   ]);
   const user = resRows.rows[0];
-
-  // const secrer = new OTPauth.Secret({size:20})
-  const secret = authenticator.generateSecret();
-  const uri = authenticator.keyuri(user.user_id, "Abdullah", secret);
-  const query2 = await pool.query(
-    "UPDATE two_factor_auth SET temp_secret = $2 FROM users WHERE two_factor_auth.user_id = users.user_id AND two_factor_auth.user_id = $1",
-    [user.user_id, secret]
-  );
-
-  const image = await qrcode.toDataURL(uri);
-  if (!image) {
-    return res
-      .status(500)
-      .json({ message: "There was an error generating the QR Code" });
-  }
-  return res.status(200).json({ image, success: true });
-});
-
-const set2FA = asyncHandler(async (req, res) => {
-  try {
-    const { code, email } = req.body;
-
-    console.log(" BODY", email, "code", code);
-    // console.log("set2FA endpoint", code);
-    const resRowsEmail = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
+  if (user) {
+    const secret = authenticator.generateSecret();
+    const uri = authenticator.keyuri(user.user_id, "Abdullah", secret);
+    const query2 = await pool.query(
+      "UPDATE two_factor_auth SET temp_secret = $2 FROM users WHERE two_factor_auth.user_id = users.user_id AND two_factor_auth.user_id = $1",
+      [user.user_id, secret]
     );
 
-    const user = resRowsEmail.rows[0];
-    // console.log(user);
-    // console.log("Pool QUERY");
-    const resRows = await pool.query(
-      "SELECT * FROM two_factor_auth LEFT JOIN users ON two_factor_auth.user_id = users.user_id WHERE two_factor_auth.user_id = $1",
-      [user.user_id]
-    );
-    // console.log("Response Rows SQL", resRows.rows[0]);
-    const userAuth = resRows.rows[0];
-    console.log("Entering Verified");
-    console.log(`CODE:${code},temp:${userAuth.temp_secret}`);
-    let verified = authenticator.check(code, userAuth.temp_secret);
-    console.log("Exiting Verified", verified);
-
-    // const userCode = userAuth.temp_secret;
-    // authenticator.check(code, userAuth.temp_secret)
-    // let verified = authenticator.check(code, userAuth.temp_secret);
-    console.log("Exiting Verified", verified);
-    if (!verified) {
-      console.log("Not Verified");
+    const image = await qrcode.toDataURL(uri);
+    if (!image) {
       return res
         .status(500)
         .json({ message: "There was an error generating the QR Code" });
     }
-    console.log("Pssing Verified Check");
+    return res.status(200).json({ image, success: true });
+  }
+});
+
+const set2FA = asyncHandler(async (req, res) => {
+  const { code, email } = req.body;
+  if (code && email) {
+    const resRowsEmail = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
+    const user = resRowsEmail.rows[0];
+    const resRows = await pool.query(
+      "SELECT * FROM two_factor_auth LEFT JOIN users ON two_factor_auth.user_id = users.user_id WHERE two_factor_auth.user_id = $1",
+      [user.user_id]
+    );
+    const userAuth = resRows.rows[0];
+    let verified = authenticator.check(code, userAuth.temp_secret);
+    if (!verified) {
+      return res
+        .status(500)
+        .json({ message: "There was an error generating the QR Code" });
+    }
+
     const secret = userAuth.temp_secret;
     const tempSecret = userAuth.temp_secret;
     const enabled = true;
 
-    console.log(
-      `SECRET: ${secret}, TEMP SEC: ${tempSecret}, ENAB:ED: ${enabled}`
-    );
     const result = await pool.query(
       "UPDATE two_factor_auth SET enabled = $1, temp_secret = $2, secret = $3 WHERE user_id = $4",
       [enabled, tempSecret, secret, user.user_id]
     );
-    console.log("FINAL RESULTSSS: ", result);
+
     if (result) {
       return res.status(200).json({ success: true });
     }
-    return res.status(404).json({ success: false });
-  } catch (error) {
-    console.log(error);
+    res.status(500).json({ success: false });
+    throw new Error("Internal Server Error");
+  } else {
+    res.status(401);
+    throw new Error("Invalid Request");
   }
 });
 

@@ -5,9 +5,8 @@ import { todoValidation } from "../utils/validation.js";
 const getAlltodo = asyncHandler(async (req, res) => {
   const email = req.params.email;
   let userId;
-  if (!email) {
-    return res.status(404).json({ message: "No email in request" });
-  }
+  if (!email) return res.status(400).json({ message: "No email in request" });
+
   if (email) {
     const emailRows = await pool.query(
       "SELECT user_id from users WHERE email = $1",

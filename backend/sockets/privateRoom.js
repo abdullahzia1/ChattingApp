@@ -15,49 +15,91 @@ export default (io, socket) => {
       // console.log(response.rows);
       socket.emit("previous-messages", response.rows);
       // io.to(room_Id).emit("previous-messages", response.rows);
+
+      //NEW CODE PASTED FOR SOCKETS
+
+      socket.on("send-private-message", async (data) => {
+        const { roomId, message, username } = data;
+
+        await pool.query(
+          "INSERT INTO private_messages (room_id, username, message) VALUES ($1, $2, $3)",
+          [roomId, username, message]
+        );
+
+        console.log("New private message stored");
+
+        io.to(roomId).emit("get-private-message", {
+          message,
+          username,
+          id: roomId,
+        });
+      });
+      // UPDATING MESSAGES
+      socket.on("update-private-message", async (data) => {
+        const { id, roomId, updatedMessage, username } = data;
+
+        await pool.query(
+          "UPDATE private_messages SET message = $1 WHERE id = $2",
+          [updatedMessage, id]
+        );
+        console.log("UPDATING MESSAGE");
+        io.to(roomId).emit("updated-private-message", {
+          id: id,
+          message: updatedMessage,
+          username,
+        });
+      });
+      // DELETEING PUBLIC MESSAGE
+      socket.on("delete-private-message", async (data) => {
+        const { id, roomId } = data;
+
+        await pool.query("DELETE FROM private_messages WHERE id = $1", [id]);
+        console.log("DELETING MESSAGE");
+        io.to(roomId).emit("deleted-private-message", id);
+      });
     });
     // console.log(room_Id);
 
     //
 
-    socket.on("send-private-message", async (data) => {
-      const { roomId, message, username } = data;
+    // socket.on("send-private-message", async (data) => {
+    //   const { roomId, message, username } = data;
 
-      await pool.query(
-        "INSERT INTO private_messages (room_id, username, message) VALUES ($1, $2, $3)",
-        [roomId, username, message]
-      );
+    //   await pool.query(
+    //     "INSERT INTO private_messages (room_id, username, message) VALUES ($1, $2, $3)",
+    //     [roomId, username, message]
+    //   );
 
-      console.log("New private message stored");
+    //   console.log("New private message stored");
 
-      io.to(roomId).emit("get-private-message", {
-        message,
-        username,
-        id: roomId,
-      });
-    });
-    // UPDATING MESSAGES
-    socket.on("update-message", async (data) => {
-      const { id, roomId, updatedMessage } = data;
+    //   io.to(roomId).emit("get-private-message", {
+    //     message,
+    //     username,
+    //     id: roomId,
+    //   });
+    // });
+    // // UPDATING MESSAGES
+    // socket.on("update-message", async (data) => {
+    //   const { id, roomId, updatedMessage } = data;
 
-      await pool.query(
-        "UPDATE private_messages SET message = $1 WHERE id = $2",
-        [updatedMessage, id]
-      );
-      console.log("UPDATING MESSAGE");
-      io.to(roomId).emit("updated-message", {
-        id: id,
-        message: updatedMessage,
-      });
-    });
-    // DELETEING PUBLIC MESSAGE
-    socket.on("delete-message", async (data) => {
-      const { id, roomId } = data;
+    //   await pool.query(
+    //     "UPDATE private_messages SET message = $1 WHERE id = $2",
+    //     [updatedMessage, id]
+    //   );
+    //   console.log("UPDATING MESSAGE");
+    //   io.to(roomId).emit("updated-message", {
+    //     id: id,
+    //     message: updatedMessage,
+    //   });
+    // });
+    // // DELETEING PUBLIC MESSAGE
+    // socket.on("delete-message", async (data) => {
+    //   const { id, roomId } = data;
 
-      await pool.query("DELETE FROM private_messages WHERE id = $1", [id]);
-      console.log("DELETING MESSAGE");
-      io.to(roomId).emit("deleted-message", id);
-    });
+    //   await pool.query("DELETE FROM private_messages WHERE id = $1", [id]);
+    //   console.log("DELETING MESSAGE");
+    //   io.to(roomId).emit("deleted-message", id);
+    // });
   } catch (error) {
     console.log(error);
   }

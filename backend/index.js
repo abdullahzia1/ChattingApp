@@ -5,11 +5,11 @@ import { configDotenv } from "dotenv";
 configDotenv();
 
 import pool from "./db/db.js";
-import { constantPath } from "./utils/constant.js";
+
 import { initSocket } from "./sockets/index.js";
 import appRoutes from "./router/indexRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
-import asyncHandler from "./middleware/asyncHandler.js";
+import { constantPath } from "./utils/constant.js";
 
 const app = express();
 const port = process.env.SERVER_PORT || 5002;
@@ -22,6 +22,20 @@ app.use(cookieParser());
 // app.use("/", express.static(constantPath("..", "client")));
 
 app.use("/api", appRoutes);
+
+if (process.env.NODE_ENV === "production") {
+  console.log(constantPath("..", "..", "/frontend/build"));
+
+  app.use(express.static(constantPath("..", "..", "/frontend/build")));
+
+  app.get("*", (req, res) =>
+    res.sendFile(constantPath("..", "..", "/frontend/build/index.html"))
+  );
+} else {
+  app.get("/", (req, res) => {
+    res.send("API is running....");
+  });
+}
 
 app.use(notFound);
 
