@@ -15,7 +15,7 @@ const RegisterScreen = () => {
   }, [navigate, user]);
   return (
     <div className="form-container">
-      <div>Register Yourself</div>
+      <h4 className="reg-h1">Register Yourself</h4>
       <Link className="already-user" to="/login">
         Already a User?
       </Link>

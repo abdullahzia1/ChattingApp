@@ -33,15 +33,6 @@ const ChatApp = () => {
           setMessages(fetchedMessages);
         });
 
-      //   newSocket.on("previous-messages", (data) => {
-      //     const fetchedMessages = data.map((dataMsg) => ({
-      //       username: dataMsg.username,
-      //       message: dataMsg.message,
-      //       id: dataMsg.id,
-      //     }));
-      //     setMessages(fetchedMessages);
-      //   });
-
       newSocket.on("get-public-message", (messageObj) => {
         setMessages((prev) => [...prev, messageObj]);
       });
@@ -56,14 +47,7 @@ const ChatApp = () => {
           }));
           setMessages(fetchedMessages);
         });
-      //   newSocket.on("previous-messages", (data) => {
-      //     const fetchedMessages = data.map((dataMsg) => ({
-      //       username: dataMsg.username,
-      //       message: dataMsg.message,
-      //       id: dataMsg.id,
-      //     }));
-      //     setMessages(fetchedMessages);
-      //   });
+
       newSocket.on("get-private-message", (messageObj) => {
         if (alertInput === messageObj.id) {
           setMessages((prev) => [...prev, messageObj]);
@@ -75,47 +59,6 @@ const ChatApp = () => {
       newSocket?.disconnect();
     };
   }, []);
-
-  //   const createConnection = async () => {
-  // setSocket(newSocket);
-
-  //     if (alertInput === 1) {
-  //       newSocket.emit("join-public-room", "public-room");
-
-  //       newSocket.on("previous-messages", (data) => {
-  //         const fetchedMessages = data.map((dataMsg) => ({
-  //           username: dataMsg.username,
-  //           message: dataMsg.message,
-  //           id: dataMsg.id,
-  //         }));
-  //         setMessages(fetchedMessages);
-  //       });
-
-  //       newSocket.on("get-public-message", (messageObj) => {
-  //         setMessages((prev) => [...prev, messageObj]);
-  //       });
-  //     } else if (alertInput > 1) {
-  //       newSocket.emit("join-private-room", alertInput);
-  //       newSocket.on("previous-messages", (data) => {
-  //         const fetchedMessages = data.map((dataMsg) => ({
-  //           username: dataMsg.username,
-  //           message: dataMsg.message,
-  //           id: dataMsg.id,
-  //         }));
-  //         setMessages(fetchedMessages);
-  //       });
-  //       newSocket.on("get-private-message", (messageObj) => {
-  //         if (alertInput === messageObj.id) {
-  //           setMessages((prev) => [...prev, messageObj]);
-  //         }
-  //       });
-  //     }
-  //   };
-
-  //   const destroyConnection = () => {
-  //     newSocket?.disconnect();
-  //     // setSocket(null);
-  //   };
 
   const sendMessage = (message) => {
     if (message && alertInput === 1) {
@@ -138,10 +81,36 @@ const ChatApp = () => {
   const handleSendMessage = () => {
     if (editingMessage) {
       // If editing, send an update message event
-      newSocket.emit("update-message", {
-        id: editingMessage.id,
-        message: editedMessage,
-      });
+      if (editingMessage && alertInput === 1) {
+        newSocket.emit("update-message", {
+          id: editingMessage.id,
+          message: editedMessage,
+        });
+      } else {
+        const msgToUpdate = messages.find(
+          (msg) => msg.id === editingMessage.id
+        );
+        newSocket
+          .emit("update-private-message", {
+            id: editingMessage.id,
+            roomId: alertInput,
+            updatedMessage: editedMessage,
+            username: user?.name,
+          })
+          .on("updated-private-message", (data) => {
+            const filteredMsgs = messages.filter((msg) => msg.id !== data.id);
+
+            setMessages([]);
+            setMessages(filteredMsgs);
+            const msgObj = {
+              message: data.message,
+              id: data.id,
+              username: data.username,
+            };
+            setMessages((prevMsgs) => [...prevMsgs, msgObj]);
+          });
+      }
+
       setEditingMessage(null);
       setEditedMessage("");
     } else {
@@ -151,7 +120,31 @@ const ChatApp = () => {
   };
 
   const handleDeleteMessage = (messageId) => {
-    newSocket.emit("delete-message", { id: messageId });
+    if (messageId && alertInput > 1) {
+      newSocket
+        .emit("delete-private-message", { id: messageId, roomId: alertInput })
+        .on("deleted-private-message", (id) => {
+          console.log(id);
+          const filteredMsgs = messages.filter((msg) => msg.id !== id);
+          if (filteredMsgs) {
+            console.log(filteredMsgs);
+            setMessages([]);
+            setMessages(filteredMsgs);
+          }
+        });
+    } else if (messageId && alertInput === 1) {
+      newSocket
+        .emit("delete-public-message", { id: messageId })
+        .on("deleted-public-message", (data) => {
+          console.log(data);
+          const filteredMsgs = messages.filter((msg) => msg.id !== data.id);
+          if (filteredMsgs) {
+            console.log(filteredMsgs);
+            setMessages([]);
+            setMessages(filteredMsgs);
+          }
+        });
+    }
   };
 
   const handleEditMessage = (message) => {

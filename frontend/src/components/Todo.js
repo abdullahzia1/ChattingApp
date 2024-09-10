@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import "./Todo.css";
 import useAxios from "../utils/useAxios";
 import AuthContext from "../context/AuthContext";
+import { toast } from "react-toastify";
 const Todo = () => {
   const { user } = useContext(AuthContext);
   const api = useAxios();
@@ -9,13 +10,18 @@ const Todo = () => {
   const [newTodo, setNewTodo] = useState("");
 
   const getAllTodos = async () => {
-    const email = user.email;
-    const response = await api.get("/api/todos/all/" + email);
-    if (response.status === 200) {
-      setTimeout(() => {
-        console.log(response.data.todos);
-      }, 4000);
-      setTodos(response.data.todos);
+    try {
+      const email = user.email;
+      const response = await api.get("/api/todos/all/" + email);
+      if (response.status === 200) {
+        setTimeout(() => {
+          console.log(response.data.todos);
+        }, 4000);
+        setTodos(response.data.todos);
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
+      console.log(err);
     }
   };
 
@@ -31,49 +37,66 @@ const Todo = () => {
   };
 
   const handleAddTodo = async () => {
-    if (newTodo.trim() !== "") {
-      const response = await api.post("/api/todos/add", {
-        description: newTodo,
-        email: user.email,
-      });
-      console.log(response.data.newTodo);
-      const newTodoItem = {
-        todo_description: newTodo,
-        todo_done: false,
-      };
-      setTodos([...todos, response.data.newTodo]);
-      setNewTodo("");
+    try {
+      if (newTodo.trim() !== "") {
+        const response = await api.post("/api/todos/add", {
+          description: newTodo,
+          email: user.email,
+        });
+        console.log(response.data.newTodo);
+        // const newTodoItem = {
+        //   todo_description: newTodo,
+        //   todo_done: false,
+        // };
+        setTodos([...todos, response.data.newTodo]);
+        setNewTodo("");
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
+      console.log(err);
     }
   };
 
   const handleToggleComplete = async (id) => {
-    const todoToUpdate = todos.find((todo) => todo.todo_id === id);
+    try {
+      const todoToUpdate = todos.find((todo) => todo.todo_id === id);
 
-    if (todoToUpdate) {
-      const response = await api.post("/api/todos/update", {
-        todoId: id,
-        email: user.email,
-        status: !todoToUpdate.todo_done,
-      });
+      if (todoToUpdate) {
+        const response = await api.post("/api/todos/update", {
+          todoId: id,
+          email: user.email,
+          status: !todoToUpdate.todo_done,
+        });
 
-      if (response.status === 200) {
-        setTodos((prevTodos) =>
-          prevTodos.map((todo) =>
-            todo.todo_id === id ? { ...todo, todo_done: !todo.todo_done } : todo
-          )
-        );
+        if (response.status === 200) {
+          setTodos((prevTodos) =>
+            prevTodos.map((todo) =>
+              todo.todo_id === id
+                ? { ...todo, todo_done: !todo.todo_done }
+                : todo
+            )
+          );
+        }
       }
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
+      console.log(err);
     }
   };
 
   const handleDeleteTodo = async (id) => {
-    const response = await api.post("/api/todos/delete", {
-      todoId: id,
-      email: user.email,
-    });
-    if (response.status === 200) {
-      const updatedTodos = todos.filter((todo) => todo.todo_id !== id);
-      setTodos(updatedTodos);
+    try {
+      const response = await api.post("/api/todos/delete", {
+        todoId: id,
+        email: user.email,
+      });
+      if (response.status === 200) {
+        const updatedTodos = todos.filter((todo) => todo.todo_id !== id);
+        setTodos(updatedTodos);
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
+      console.log(err);
     }
   };
 

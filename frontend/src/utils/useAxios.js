@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { useContext } from "react";
 import AuthContext from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const baseURL = "http://localhost:5000";
 
@@ -37,6 +38,7 @@ const useAxios = () => {
       });
       localStorage.removeItem("authTokens");
       if (response.status === 403) {
+        toast.error("Session has Expired, Please Login Again");
         logoutUser();
         return navigate("/login");
       }

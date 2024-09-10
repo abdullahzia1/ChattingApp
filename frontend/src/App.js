@@ -14,12 +14,15 @@ import RootProvider from "./context/RootProvider";
 import ChatApp from "./pages/ChatApp";
 import RegisterScreen from "./pages/RegisterScreen";
 
+import { ToastContainer } from "react-toastify";
+
 function App() {
   return (
     <div className="App">
       <Router>
         <RootProvider>
           <Header />
+          <ToastContainer />
           <Routes>
             <Route
               path="/"

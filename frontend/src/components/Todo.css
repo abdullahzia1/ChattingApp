@@ -26,6 +26,7 @@ body {
   justify-content: space-between;
   align-items: center;
   background: #2989d8;
+  overflow-y: scroll;
 }
 
 .input-todo {

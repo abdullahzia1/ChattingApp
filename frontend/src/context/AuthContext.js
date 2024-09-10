@@ -1,6 +1,8 @@
 import { createContext, useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const AuthContext = createContext();
 
@@ -26,8 +28,9 @@ export const AuthProvider = ({ children }) => {
 
   let loginUser = async (e) => {
     e.preventDefault();
+
     try {
-      let response = await fetch("http://localhost:5000/api/users/login", {
+      let response = await fetch(`http://localhost:5000/api/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -38,10 +41,11 @@ export const AuthProvider = ({ children }) => {
           twoFAcode: e.target.code.value,
         }),
       });
+      // console.log(` This is base URL :${BASE_URL}`);
       let data = await response.json();
-      localStorage.setItem("alertInput", e.target.roomNumber.value);
 
       if (response.status === 200) {
+        localStorage.setItem("alertInput", e.target.roomNumber.value);
         setAuthTokens(data);
         const token = data.access_Token;
         setUser(jwtDecode(token.toString()));
@@ -50,36 +54,13 @@ export const AuthProvider = ({ children }) => {
 
         // After login, establish the WebSocket connection
       } else {
-        console.log("LOGINR", response);
-        alert("Something went wrong!");
+        toast.error("Invalid Credentials");
       }
-    } catch (error) {
-      console.log("LOGIN ERROR", error);
-    }
-    let response = await fetch("http://localhost:5000/api/users/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: e.target.email.value,
-        password: e.target.password.value,
-        twoFAcode: e.target.code.value,
-      }),
-    });
-    let data = await response.json();
-    localStorage.setItem("alertInput", e.target.roomNumber.value);
-
-    if (response.status === 200) {
-      setAuthTokens(data);
-      const token = data.access_Token;
-      setUser(jwtDecode(token.toString()));
-      localStorage.setItem("authTokens", JSON.stringify(data));
-      navigate("/");
-
-      // After login, establish the WebSocket connection
-    } else {
-      alert("Something went wrong!");
+      console.log("LOGINR", response);
+      // alert("Something went wrong!");
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
+      console.log("LOGIN ERROR", err);
     }
   };
 
@@ -94,30 +75,33 @@ export const AuthProvider = ({ children }) => {
   };
 
   let registerUser = async (e) => {
-    e.preventDefault();
-    let response = await fetch("http://localhost:5000/api/users/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: e.target.email.value,
-        name: e.target.name.value,
-        password: e.target.password.value,
-      }),
-    });
-    let data = await response.json();
+    try {
+      e.preventDefault();
+      let response = await fetch("http://localhost:5000/api/users/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: e.target.email.value,
+          name: e.target.name.value,
+          password: e.target.password.value,
+        }),
+      });
+      let data = await response.json();
 
-    if (response.status === 200) {
-      setAuthTokens(data);
-      const token = data.access_Token;
-      setUser(jwtDecode(token.toString()));
-      localStorage.setItem("authTokens", JSON.stringify(data));
-      navigate("/");
-
-      // After signup, establish the WebSocket connection
-    } else {
-      alert("Something went wrong!");
+      if (response.status === 200) {
+        setAuthTokens(data);
+        const token = data.access_Token;
+        setUser(jwtDecode(token.toString()));
+        localStorage.setItem("authTokens", JSON.stringify(data));
+        navigate("/");
+      } else {
+        toast.error(response.statusText);
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || err.error);
+      console.log("Signup ERROR", err);
     }
   };
 
