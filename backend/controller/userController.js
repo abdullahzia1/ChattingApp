@@ -22,6 +22,9 @@ import asyncHandler from "../middleware/asyncHandler.js";
 const authUser = asyncHandler(async (req, res) => {
   const { email, password, twoFAcode } = req.body;
 
+  if (!email && !password && !twoFAcode)
+    return res.status(401).json({ message: "Invalid Credentials" });
+
   const result = loginValidation.validate({ email, password });
   if (result.error) {
     res.status(400).json({ message: result.error.message });
@@ -48,29 +51,19 @@ const authUser = asyncHandler(async (req, res) => {
   let verified = false;
   if (twoAuth.enabled === "true") {
     verified = authenticator.check(twoFAcode, twoAuth.secret);
-    if (twoAuth.enabled === "true" && !verified) {
-      res.status(401);
-      throw new Error("Invalid Credentials");
-    }
-    // if (twoFAcode == 0) return res.status(401);
+    if (twoAuth.enabled === "true" && !verified)
+      return res.status(401).json({ message: "Invalid Credentials" });
   }
-
-  // console.log(user);
 
   const isPasswordMatch = await bcrypt.compare(password, user.hashed_password);
 
-  if (!isPasswordMatch) {
-    res.status(401);
-    throw new Error("Invalid Credentials");
-  }
-  console.log("Generating access token");
-  // const userFullname = user.full_name;
-  // const userEmail = user.email;
+  if (!isPasswordMatch)
+    return res.status(401).json({ message: "Invalid Credentials" });
+
   const access_Token = generateAccessToken(user.email, user.full_name, "4h");
   const refresh_Token = generateRefreshToken(user.email, user.full_name, "7d");
 
   if (access_Token && refresh_Token) {
-    console.log(refresh_Token);
     await pool.query("UPDATE users SET refreshtoken = $1 WHERE user_id = $2", [
       refresh_Token,
       user.user_id,
@@ -79,10 +72,10 @@ const authUser = asyncHandler(async (req, res) => {
       access_Token: access_Token,
       refresh_Token: refresh_Token,
     });
-  } else {
-    res.status(500);
-    throw new Error("Internal Server Error");
   }
+
+  res.status(500);
+  throw new Error("Internal Server Error");
 });
 
 /* 
@@ -99,10 +92,8 @@ const postUserSignup = asyncHandler(async (req, res) => {
     password,
     name,
   });
-  if (result.error) {
-    res.status(400);
-    throw new Error(result.error.message);
-  }
+  if (result.error)
+    return res.status(422).json({ message: result.error.message });
 
   const existingUser = await pool.query(
     `SELECT COUNT(*) FROM users WHERE email = $1`,
@@ -122,18 +113,20 @@ const postUserSignup = asyncHandler(async (req, res) => {
       "INSERT INTO two_factor_auth(user_id,enabled) VALUES($1, $2)",
       [newUser.user_id, false]
     );
+
     const access_Token = generateAccessToken(email, name, "4h");
     const refresh_Token = generateRefreshToken(email, name, "7d");
 
     if (access_Token && refresh_Token) {
-      return res.status(200).json({
-        access_Token,
-        refresh_Token,
-      });
-    } else {
-      res.status(500);
-      throw new Error("User registration failed");
+      await pool.query(
+        "UPDATE users SET refreshtoken = $1 WHERE user_id = $2",
+        [refresh_Token, newUser.user_id]
+      );
+      return res.status(200).json({ access_Token, refresh_Token });
     }
+
+    res.status(500);
+    throw new Error("User registration failed");
   }
   res.status(401);
   throw new Error("User is already registred");
@@ -185,15 +178,15 @@ const getProtectedRoute = asyncHandler(async (req, res) => {
 
 const postQRCode = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  if (!email) {
-    res.status(401);
-    throw new Error("Invalid Request");
-  }
-  console.log("qrCode endpoint");
+  if (!email) return res.status(401).json({ error: "Invalid Request" });
+
+  // console.log("qrCode endpoint");
+
   const resRows = await pool.query("SELECT * FROM users WHERE email = $1", [
     email,
   ]);
   const user = resRows.rows[0];
+
   if (user) {
     const secret = authenticator.generateSecret();
     const uri = authenticator.keyuri(user.user_id, "Abdullah", secret);
@@ -203,11 +196,9 @@ const postQRCode = asyncHandler(async (req, res) => {
     );
 
     const image = await qrcode.toDataURL(uri);
-    if (!image) {
-      return res
-        .status(500)
-        .json({ message: "There was an error generating the QR Code" });
-    }
+    if (!image)
+      return res.status(500).json({ message: "Internal Server Error" });
+
     return res.status(200).json({ image, success: true });
   }
 });
@@ -225,12 +216,13 @@ const set2FA = asyncHandler(async (req, res) => {
       [user.user_id]
     );
     const userAuth = resRows.rows[0];
+
     let verified = authenticator.check(code, userAuth.temp_secret);
-    if (!verified) {
+
+    if (!verified)
       return res
         .status(500)
         .json({ message: "There was an error generating the QR Code" });
-    }
 
     const secret = userAuth.temp_secret;
     const tempSecret = userAuth.temp_secret;
@@ -241,14 +233,12 @@ const set2FA = asyncHandler(async (req, res) => {
       [enabled, tempSecret, secret, user.user_id]
     );
 
-    if (result) {
-      return res.status(200).json({ success: true });
-    }
+    if (result) return res.status(200).json({ success: true });
     res.status(500).json({ success: false });
     throw new Error("Internal Server Error");
   } else {
     res.status(401);
-    throw new Error("Invalid Request");
+    throw new Error("Bad Request");
   }
 });
 
